@@ -5,5 +5,8 @@ import type { Config, Gap, Reading } from './types.ts';
  * See "Tier 2" in the README.
  */
 export function detectGaps(readings: Reading[], config: Config): Gap[] {
-  throw new Error('not implemented');
+  if (readings.length === 0) return [];
+
+  const gaps: Gap[] = [];
+  return gaps;
 }
