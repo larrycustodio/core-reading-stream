@@ -1,14 +1,5 @@
 import type { Config, Reading, WindowSummary } from './types.ts';
-
-const compKey = (values: string[]): string => values.join('::');
-
-const isValid = (args: { config: Config, reading: Reading }) => {
-  const { config, reading } = args;
-  const isFinite = Number.isFinite(reading.value)
-  const isInRange = reading.value !== null && reading.value >= config.validRange.min &&
-    reading.value <= config.validRange.max;
-  return isFinite && isInRange;
-}
+import { cleanupReadings, compKey } from './cleanupReadings.ts';
 
 const sortWindowSummary = (prev: WindowSummary, curr: WindowSummary) => {
   if (prev.deviceId < curr.deviceId) return -1;
@@ -23,24 +14,9 @@ const sortWindowSummary = (prev: WindowSummary, curr: WindowSummary) => {
 export function summarize(readings: Reading[], config: Config): WindowSummary[] {
   if (readings.length === 0) return [];
 
-  const deviceSequenceSet = new Set<string>();
-  const latestAcceptedDeviceValueMap = new Map<string, number>();
   const windowSummaryMap = new Map<string, WindowSummary>();
 
-  for (const reading of readings) {
-    // rule 2
-    const setKey = compKey([reading.deviceId, reading.ts.toString()]);
-    if (deviceSequenceSet.has(setKey)) continue;
-    deviceSequenceSet.add(setKey);
-
-    // rule 1
-    if (!isValid({ config, reading })) continue;
-
-    // rule 3
-    const latestTs = latestAcceptedDeviceValueMap.get(reading.deviceId) ?? -Infinity;
-    if (reading.ts < latestTs - config.maxLatenessMs) continue;
-    latestAcceptedDeviceValueMap.set(reading.deviceId, Math.max(latestTs, reading.ts));
-
+  for (const reading of cleanupReadings(readings, config)) {
     const windowStart = Math.floor(reading.ts / config.windowMs) * config.windowMs;
     const readingValue = reading.value ?? 0;
     const summaryKey = compKey([reading.deviceId, windowStart.toString()]);
