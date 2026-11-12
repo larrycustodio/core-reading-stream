@@ -140,17 +140,36 @@ describe('filtering', () => {
   });
 
   test('a reading exactly maxLatenessMs behind is kept', () => {
-    // 25 000 is exactly 5 000 behind 30 000.
+    // 25 000 is exactly 5 000 behind 30 000, so it is accepted and ends the gap early.
+    // 25 000 -> 30 000 is only 5 000, which is not a gap.
     const out = detectGaps([r('a', 0), r('a', 30_000), r('a', 25_000)], config);
-    assert.deepEqual(out, [
-      { deviceId: 'a', start: 0, end: 25_000 },
-      { deviceId: 'a', start: 25_000, end: 30_000 },
-    ]);
+    assert.deepEqual(out, [{ deviceId: 'a', start: 0, end: 25_000 }]);
   });
 
   test('a resent reading is dropped', () => {
     // The resend of seq 7 arrives later with a different ts; it must not create a reading at 15 000.
     const out = detectGaps([r('a', 0, 1, 7), r('a', 30_000), r('a', 15_000, 1, 7)], config);
     assert.deepEqual(out, [{ deviceId: 'a', start: 0, end: 30_000 }]);
+  });
+
+  test('a resend is dropped even when it would pass the lateness check', () => {
+    // 15 000 is within maxLatenessMs of 12 000, so only the duplicate rule can drop it.
+    const out = detectGaps([r('a', 0, 1, 7), r('a', 12_000), r('a', 15_000, 1, 7), r('a', 30_000)], config);
+    assert.deepEqual(out, [
+      { deviceId: 'a', start: 0, end: 12_000 },
+      { deviceId: 'a', start: 12_000, end: 30_000 },
+    ]);
+  });
+
+  test('a resend of an invalid reading is also dropped', () => {
+    // The first seq 7 is null; its valid resend is still a duplicate, so 15 000 never splits the gap.
+    const out = detectGaps([r('a', 0), r('a', 15_000, null, 7), r('a', 15_000, 1, 7), r('a', 30_000)], config);
+    assert.deepEqual(out, [{ deviceId: 'a', start: 0, end: 30_000 }]);
+  });
+
+  test('two distinct readings with the same ts are not duplicates', () => {
+    // Different seqs at the same ts are separate readings; neither may be dropped as a resend.
+    const out = detectGaps([r('a', 0), r('a', 20_000, 1, 1), r('a', 20_000, 2, 2)], config);
+    assert.deepEqual(out, [{ deviceId: 'a', start: 0, end: 20_000 }]);
   });
 });
