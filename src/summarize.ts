@@ -7,11 +7,9 @@ const sortWindowSummary = (prev: WindowSummary, curr: WindowSummary) => {
   return prev.windowStart - curr.windowStart;
 }
 
-/** Start of the tumbling window that `ts` falls in. */
 export const windowStartOf = (ts: number, config: Config): number =>
   Math.floor(ts / config.windowMs) * config.windowMs;
 
-/** Fold one accepted reading into its window's summary (or start one). */
 export const addToSummary = (
   summary: WindowSummary | undefined,
   reading: Reading,

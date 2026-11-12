@@ -2,7 +2,7 @@ import type { Config, Reading } from './types.ts';
 
 export const compKey = (values: string[]): string => values.join('::');
 
-const isValid = (args: { config: Config, reading: Reading }) => {
+export const isValid = (args: { config: Config, reading: Reading }) => {
   const { config, reading } = args;
   const isFinite = Number.isFinite(reading.value)
   const isInRange = reading.value !== null && reading.value >= config.validRange.min &&
